@@ -72,5 +72,76 @@ Este é um projeto de **Código Proprietário e Privado**. Colaboradores devem s
 **Propriedade Intelectual:** Mestre Bernini / Severino-AI.
 **Licença:** Todos os direitos reservados. O uso deste código para operações reais envolve risco financeiro. A Lei Determinística é uma ferramenta estatística de alta probabilidade, não uma garantia de lucro futuro.
 
+
+Para entender, pense no bot como um radar de trânsito observando um carro em uma subida:
+
+1. Velocidade 30m (+0.006) = A Direção Atual
+A velocidade positiva significa que, no balanço dos últimos 30 minutos, o preço está mais alto do que estava antes. O "carro" está se movendo para cima (tendência de alta).
+
+2. Aceleração 5m (-0.007) = A Perda de Força
+A aceleração negativa significa que a velocidade está diminuindo.
+
+Imagine que o preço subiu 1% na janela anterior, mas nesta janela de 5 minutos ele subiu apenas 0.2%.
+
+O movimento ainda é para cima (Velocidade +), mas ele está "freiando" ou perdendo o fôlego (Aceleração -).
+
+Como isso funciona na prática (Física do Mercado)
+A relação entre os dois indica o Ciclo de Vida do movimento:
+Velocidade,Aceleração,O que significa?,Decisão do Bot V6
+Positiva (+),Positiva (+),Subindo e ganhando força (Explosão).,IGNIÇÃO BUY (Compra)
+Positiva (+),Negativa (-),"Subindo, mas perdendo força (Exaustão).",AGUARDANDO (Risco de topo)
+Negativa (-),Negativa (-),Caindo e ganhando força na queda.,IGNIÇÃO SHORT (Venda)
+Negativa (-),Positiva (+),"Caindo, mas freiando a queda.",AGUARDANDO (Risco de fundo)
+
+
+
+Aqui está o processo passo a passo:
+
+### 1. A Matéria-Prima (DataFrame)
+O bot baixa os últimos 60 candles (velas) da Bitget. Cada vela contém o preço de fechamento (`close`).
+
+### 2. O Cálculo da Velocidade ($v$)
+Diferente de um velocímetro de carro que mede distância por tempo, no trading a "distância" é a variação do preço. No seu código, a velocidade é a **Variação Percentual (Percent Change)**.
+
+A fórmula aplicada no `physics.py` é:
+$$v = \frac{Preço_{atual} - Preço_{anterior}}{Preço_{anterior}}$$
+
+* **Na prática:** Se o BTC estava em $70.000 e foi para $70.700, a velocidade é de **+0.01** (ou 1%).
+* **O que o bot vê:** Se esse valor for maior que o seu **Sigma** (ex: 0.005), ele entende que o mercado tem "pressa" para subir.
+
+### 3. O Cálculo da Aceleração ($a$)
+A aceleração mede a **mudança na velocidade**. Ela serve para saber se o mercado está ganhando tração ou se está "cansando".
+
+A fórmula aplicada é a diferença entre a velocidade da vela atual e a velocidade da vela anterior:
+$$a = v_{atual} - v_{anterior}$$
+
+* **Exemplo de Aceleração Positiva:**
+    * Vela 1: Velocidade +0.001
+    * Vela 2: Velocidade +0.005
+    * **Aceleração:** $0.005 - 0.001 = +0.004$ (O preço está subindo cada vez mais rápido).
+
+* **Exemplo de Aceleração Negativa (o que você viu no seu print):**
+    * Vela 1: Velocidade +0.006
+    * Vela 2: Velocidade +0.002
+    * **Aceleração:** $0.002 - 0.006 = -0.004$ (O preço ainda está subindo, mas a força da subida diminuiu drasticamente).
+
+---
+
+### 4. A Tomada de Decisão (A Lógica V6)
+
+O bot não olha apenas para esses números isolados. Ele os cruza para garantir a **Simetria Total** que você testou no backtest:
+
+1.  **Filtro de Tendência:** O preço atual deve estar acima da Média de 30m + 0.5 Desvios (garante que não é apenas um "ruído" lateral).
+2.  **Confirmação de Direção:** A Velocidade 30m deve ser maior que o Sigma (garante que há volume direcional).
+3.  **Confirmação de Explosão:** A Aceleração 5m **precisa ser positiva** (garante que você está entrando no início de um impulso, e não no final dele).
+
+
+
+### Por que usar 30m para Velocidade e 5m para Aceleração?
+* **Velocidade (30m):** Serve como uma **âncora**. Ela te diz para onde o "navio" maior está indo.
+* **Aceleração (5m):** Serve como o **gatilho**. Ela observa as pequenas oscilações rápidas para decidir o segundo exato de "apertar o botão", evitando que o bot entre atrasado na operação.
+
+Se a aceleração está negativa, como no seu print, o bot interpreta que o "combustível" daquela subida acabou momentaneamente, por isso ele mantém o status em **AGUARDANDO**.
+
 ---
 **"No mercado, como na física, a força sem aceleração é apenas peso morto."**
